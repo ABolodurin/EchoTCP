@@ -11,7 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @RequiredArgsConstructor
-public class EchoTCPWorker extends Thread {
+class EchoTCPWorker extends Thread {
     private final Queue<Socket> queue;
     private final int threads;
 
