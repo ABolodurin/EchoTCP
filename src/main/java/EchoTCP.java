@@ -1,52 +1,35 @@
-import lombok.RequiredArgsConstructor;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-@RequiredArgsConstructor
 public class EchoTCP extends Thread {
-    private final int threads;
+    private final Queue<Socket> queue = new ConcurrentLinkedQueue<>();
+    private final EchoTCPWorker worker;
+    private final ServerSocket serverSocket;
+
+    public EchoTCP(int port, int backlog, int threads) {
+        this.worker = new EchoTCPWorker(queue, threads);
+        try {
+            this.serverSocket = new ServerSocket(port, backlog);
+        }catch (IOException e){
+            throw new RuntimeException("Could not create server socket: " + e);
+        }
+    }
 
     @Override
     public void run() {
-        ServerSocket serverSocket;
-        ExecutorService executorService = Executors.newFixedThreadPool(threads);
-
-        try {
-            serverSocket = new ServerSocket(8080, 50);
-        } catch (IOException e) {
-            throw new RuntimeException("Can not create server socket: " + e);
-        }
+        worker.start();
 
         while (true) {
             try {
                 Socket socket = serverSocket.accept();
-                executorService.execute(echo(socket));
+                queue.add(socket);
             } catch (IOException e) {
                 throw new RuntimeException("Connection error: " + e);
             }
         }
-    }
-
-    private Runnable echo(Socket socket) {
-        return () -> {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-                 socket) {
-                String response = Thread.currentThread() + ": " + reader.readLine();
-                System.out.println("writing response: " + response);
-                writer.write(response);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        };
     }
 
 }
